@@ -3,10 +3,11 @@ version: '3.9'
 services:
   dash:
     command: python3 app.py
-    image: anubhav/a3:st125999  # ✅ same image name so you can reuse
+    image: anubhavkharel01/a3:latest
     environment:
       - HOST=0.0.0.0
       - PORT=80
+      - MLFLOW_TRACKING_URI=https://mlflow.ml.brain.cs.ait.ac.th
       - MLFLOW_TRACKING_USERNAME=admin
       - MLFLOW_TRACKING_PASSWORD=password
     labels:
