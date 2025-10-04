@@ -1,0 +1,95 @@
+import joblib
+import mlflow
+import os
+import matplotlib.pyplot as plt
+
+# ✅ Connect to AIT MLflow server
+mlflow.set_tracking_uri("https://mlflow.ml.brain.cs.ait.ac.th")
+os.environ["MLFLOW_TRACKING_USERNAME"] = "admin"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = "password"
+mlflow.set_experiment("A3_st125999")
+
+print("✅ Connected to AIT MLflow server as admin; experiment 'A3_st125999' set.")
+
+# ✅ Run all three optimization methods
+methods = ["batch", "minibatch", "sto"]
+
+for method in methods:
+    print(f"\n🚀 Running {method.upper()} Optimization...\n")
+
+    model = LogisticRegression(
+        k=Y_train_encoded.shape[1],
+        n=X_train.shape[1],
+        method=method,
+        alpha=0.001,
+        epochs=500,          # ✅ Added epochs
+        max_iter=2000,
+        use_penalty=True,
+        lambda_=0.1
+    )
+
+    with mlflow.start_run(run_name=f"{method}_L2_reg"):
+        # Log hyperparameters
+        mlflow.log_params({
+            "method": method,
+            "alpha": model.alpha,
+            "epochs": model.epochs,      # ✅ Log epochs
+            "max_iter": model.max_iter,
+            "lambda_": model.lambda_,
+            "use_penalty": model.use_penalty,
+            "n_classes": model.k,
+            "n_features": model.n
+        })
+
+        # ⏱ Train model
+        model.fit(X_train, Y_train_encoded)
+
+        # 🔮 Predict
+        y_pred = model.predict(X_test)
+
+        # 🎯 Evaluate
+        acc = model.accuracy(y_test, y_pred)
+        precision, recall, f1, support = model.precision_recall_f1_per_class(y_test, y_pred)
+        macro_p, macro_r, macro_f = model.macro_avg(precision, recall, f1)
+        weighted_p, weighted_r, weighted_f = model.weighted_avg(precision, recall, f1, support)
+
+        # 📈 Log metrics
+        mlflow.log_metrics({
+            "accuracy": acc,
+            "macro_precision": macro_p,
+            "macro_recall": macro_r,
+            "macro_f1": macro_f,
+            "weighted_precision": weighted_p,
+            "weighted_recall": weighted_r,
+            "weighted_f1": weighted_f
+        })
+
+        # Per-class metrics
+        for c in precision.keys():
+            mlflow.log_metric(f"precision_class_{c}", precision[c])
+            mlflow.log_metric(f"recall_class_{c}", recall[c])
+            mlflow.log_metric(f"f1_class_{c}", f1[c])
+
+        # 📉 Plot loss curve
+        plt.figure(figsize=(6, 4))
+        plt.plot(model.losses, label=f"{method} Loss")
+        plt.title(f"Loss Curve ({method})")
+        plt.xlabel("Epoch")              # ✅ More appropriate now
+        plt.ylabel("Loss")
+        plt.legend()
+        fname = f"loss_curve_{method}.png"
+        plt.savefig(fname)
+        plt.close()
+
+        # Log artifact
+        mlflow.log_artifact(fname)
+
+         # 💾 Save & log trained model ✅
+        model_filename = f"{method}_model.pkl"
+        joblib.dump(model, model_filename)
+        mlflow.log_artifact(model_filename)
+
+        print(f"✅ {method.upper()} DONE | Accuracy: {acc:.4f} | Macro F1: {macro_f:.4f}")
+
+print("\n🏁 All optimization experiments completed and logged to MLflow!")
+print("🔗 View results: https://mlflow.ml.brain.cs.ait.ac.th")

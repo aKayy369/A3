@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  model-tester:
+    command: tail -f /dev/null       # Keeps container alive for dev debugging
+    image: anubhav/a3:st125999       # Your local image name
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 9001:80                      # Localhost:9001 → container:80
+    volumes:
+      - ./code:/root/code            # So you can edit code live
+      - ./.vscode-server:/root/.vscode-server
+    environment:
+      - MLFLOW_TRACKING_USERNAME=admin
+      - MLFLOW_TRACKING_PASSWORD=password

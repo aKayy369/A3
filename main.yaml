@@ -1,0 +1,42 @@
+# This workflow defines the Continuous Integration (CI) pipeline for the project.
+# It automatically runs tests every time a commit is pushed to the repository.
+
+name: CI for Car Price Predictor
+
+# Trigger the workflow on every push to the main or master branch
+on:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  # Define a single job called "test"
+  test:
+    # Use the latest version of Ubuntu as the runner environment
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code so the workflow can access it
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up the Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' # Use a specific, stable Python version
+
+      # Step 3: Install the required Python packages
+      # This step assumes your requirements.txt file is in the 'app' directory
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f app/requirements.txt ]; then pip install -r app/requirements.txt; fi
+
+      # Step 4: Run the unit tests
+      # This step securely passes your MLflow credentials (stored as GitHub secrets)
+      # as environment variables to the test script.
+      - name: Run model tests
+        env:
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: python app/test.py

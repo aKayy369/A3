@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  dash:
+    command: python3 app.py
+    image: anubhav/a3:st125999  # ✅ same image name so you can reuse
+    environment:
+      - HOST=0.0.0.0
+      - PORT=80
+      - MLFLOW_TRACKING_USERNAME=admin
+      - MLFLOW_TRACKING_PASSWORD=password
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.dash-st125999.loadbalancer.server.port=80
+      - traefik.http.routers.dash-st125999.rule=Host(`st125999.ml.brain.cs.ait.ac.th`)
+      - traefik.http.routers.dash-st125999.tls=true
+      - traefik.http.routers.dash-st125999.tls.certresolver=production
+      - traefik.http.routers.dash-st125999.entrypoints=websecure
+    networks:
+      - default
+      - traefik_default
+
+networks:
+  default:
+  traefik_default:
+    external: true
