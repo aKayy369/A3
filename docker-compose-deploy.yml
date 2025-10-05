@@ -2,26 +2,52 @@ version: '3.9'
 
 services:
   dash:
+    # 🧠 Command to start your Dash app
     command: python3 app.py
-    image: anubhavkharel01/a3:latest
+
+    # 🐳 Image built & pushed to Docker Hub
+    image: anubhavkharel01/a3-app:latest
+
+    # 🌍 Expose the app on port 80 inside container
+    ports:
+      - "8060:80"
+
+    # 🔐 Environment variables for MLflow connection
     environment:
       - HOST=0.0.0.0
       - PORT=80
       - MLFLOW_TRACKING_URI=https://mlflow.ml.brain.cs.ait.ac.th
       - MLFLOW_TRACKING_USERNAME=admin
       - MLFLOW_TRACKING_PASSWORD=password
+      - APP_MODEL_NAME=st125999-a3-model
+
+    # 🏷️ Traefik labels to route your app
     labels:
+      # Enable Traefik
       - traefik.enable=true
-      - traefik.http.services.dash-st125999.loadbalancer.server.port=80
+
+      # 🔌 Internal port Dash runs on
+      - traefik.http.services.dash-st125999.loadbalancer.server.port=80  
+
+      # 🌐 Domain: <service>-<studentID>.ml.brain.cs.ait.ac.th
       - traefik.http.routers.dash-st125999.rule=Host(`st125999.ml.brain.cs.ait.ac.th`)
+
+      # 🔒 Enable HTTPS
       - traefik.http.routers.dash-st125999.tls=true
       - traefik.http.routers.dash-st125999.tls.certresolver=production
       - traefik.http.routers.dash-st125999.entrypoints=websecure
+
+    # 🔁 Always restart on failure
+    restart: always
+
+    # 🌐 Networks
     networks:
       - default
       - traefik_default
 
+# 🕸️ Networks: keep default and connect to Traefik
 networks:
   default:
   traefik_default:
     external: true
+

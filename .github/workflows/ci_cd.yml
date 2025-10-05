@@ -1,9 +1,12 @@
-name: CI/CD - Test, Build & Deploy 🚀
+name: CI/CD - Test → Build → Deploy
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
+    branches: [ main ]   # 🚀 Runs on every push to main
+  workflow_dispatch:      # 🧠 Can also be triggered manually
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/a3-app:latest
 
 jobs:
   test:
@@ -15,45 +18,75 @@ jobs:
       MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🧪 Run unit tests
+      - name: 🧪 Run Tests
         run: python test.py
 
-  deploy:
-    name: 🚀 Build & Deploy to AIT Traefik
+  build_and_push:
+    name: 🐳 Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: test  # Only runs if 'test' passes ✅
+    needs: test
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🔑 Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: 🔑 Login to DockerHub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: 🏗️ Build Docker Image
+        run: docker build -t "${{ env.IMAGE_NAME }}" .
+
+      - name: 📤 Push Docker Image
+        run: docker push "${{ env.IMAGE_NAME }}"
+
+  deploy:
+    name: 🚀 Deploy to AIT Traefik Server
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 SSH & Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          host: ${{ vars.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          proxy_host: ${{ vars.PROXY_HOST }}
+          proxy_username: ${{ secrets.USERNAME }}
+          proxy_key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
 
-      - name: 🏗️ Build Docker image
-        run: docker build -t anubhavkharel01/a3:latest .
+            echo "🔐 Logging into DockerHub..."
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: 🚀 Push image to Docker Hub
-        run: docker push anubhavkharel01/a3:latest
+            echo "📦 Pulling latest image..."
+            docker pull "${{ env.IMAGE_NAME }}"
 
-      - name: 🌐 Deploy to AIT Server (Traefik)
-        run: |
-          echo "Deployment to Traefik would be triggered here"
-          echo "Your image: anubhavkharel01/a3:latest"
-          echo "Your domain: https://st125999.ml.brain.cs.ait.ac.th"
+            echo "🧹 Cleaning old container..."
+            docker stop a3-app || true && docker rm a3-app || true
+
+            echo "🚀 Starting new container..."
+            docker run -d --restart always -p 8060:80 \
+              -e MLFLOW_TRACKING_URI="${{ secrets.MLFLOW_TRACKING_URI }}" \
+              -e MLFLOW_TRACKING_USERNAME="${{ secrets.MLFLOW_TRACKING_USERNAME }}" \
+              -e MLFLOW_TRACKING_PASSWORD="${{ secrets.MLFLOW_TRACKING_PASSWORD }}" \
+              -e APP_MODEL_NAME="${{ secrets.APP_MODEL_NAME }}" \
+              --name a3-app "${{ env.IMAGE_NAME }}"
+
+            echo "✅ Deployment completed! Visit: http://${{ vars.HOST }}:8060"
