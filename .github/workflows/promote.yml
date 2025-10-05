@@ -1,24 +1,32 @@
 name: Promote Model to Production
+
+# 👇 Trigger manually from the Actions tab
 on:
   workflow_dispatch:
 
 jobs:
   promote:
+    name: 🚀 Promote Staging Model → Production
     runs-on: ubuntu-latest
+
     steps:
-      - name: 📥 Checkout repo
+      # Step 1️⃣: Checkout your repo
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
+      # Step 2️⃣: Setup Python
+      - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 📦 Install dependencies
+      # Step 3️⃣: Install dependencies
+      - name: 📦 Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install mlflow
 
+      # Step 4️⃣: Run the promotion script
       - name: 🚀 Promote Model
         env:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
