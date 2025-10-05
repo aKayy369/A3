@@ -1,34 +1,52 @@
-name: CD - Deploy Dash App
+name: 🚀 Deploy A3 App to AIT Brain Server
 
 on:
   push:
-    branches: [ main ]   # Deploy whenever you push to main
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-      MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
-      MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
-
     steps:
-      - name: 📥 Checkout repository
+      - name: 🧭 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
+      - name: 🔐 Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: 🐳 Build Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/a3-app:latest .
+
+      - name: 📦 Push Image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/a3-app:latest
+
+      - name: 📡 Deploy to AIT Brain Server
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          python-version: "3.11"
+          host: ml.brain.cs.ait.ac.th
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "🛑 Stopping old container (if exists)..."
+            docker stop a3-app || true
+            docker rm a3-app || true
 
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+            echo "📥 Pulling latest image..."
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/a3-app:latest
 
-      - name: 🚀 Deploy Dash App (Simulation)
-        run: |
-          echo "✅ All tests passed! Starting deployment..."
-          echo "🚀 Deploying Dash app to server..."
-          echo "🎉 Deployment successful!"
+            echo "🚀 Starting new container..."
+            docker run -d \
+              --name a3-app \
+              -p 8060:8060 \
+              -e MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }} \
+              -e MLFLOW_TRACKING_USERNAME=${{ secrets.MLFLOW_TRACKING_USERNAME }} \
+              -e MLFLOW_TRACKING_PASSWORD=${{ secrets.MLFLOW_TRACKING_PASSWORD }} \
+              -e APP_MODEL_NAME=${{ secrets.APP_MODEL_NAME }} \
+              ${{ secrets.DOCKERHUB_USERNAME }}/a3-app:latest
+
+            echo "✅ Deployment complete! Running on port 8060"
