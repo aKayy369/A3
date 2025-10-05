@@ -1,3 +1,4 @@
+
 import os
 import json
 import argparse
@@ -69,14 +70,12 @@ try:
     local_assets_dir = client.download_artifacts(run_id, "", ".")
     assets_path = os.path.join(local_assets_dir, "assets.json")
 
-    class_names = ["Low", "Medium", "High", "Premium"]
     price_bin_edges = [0, 260000, 450000, 680000, 1000000]
     features = ["year", "max_power", "mileage", "brand", "fuel"]
 
     if os.path.exists(assets_path):
         with open(assets_path, "r") as f:
             assets = json.load(f)
-        class_names = assets.get("class_names", class_names)
         price_bin_edges = assets.get("price_bin_edges", price_bin_edges)
         num_cols = assets.get("num_cols")
         cat_cols = assets.get("cat_cols")
@@ -88,7 +87,6 @@ try:
 except Exception as e:
     print(f"🚨 Error loading model or assets: {e}")
     model_pipeline = None
-    class_names = ["Low", "Medium", "High", "Premium"]
     price_bin_edges = [0, 260000, 450000, 680000, 1000000]
     features = ["year", "max_power", "mileage", "brand", "fuel"]
 
@@ -96,7 +94,7 @@ except Exception as e:
 # 🎨 Dash UI
 # ========================================
 app = dash.Dash(__name__)
-app.title = "Car Price Category Predictor"
+app.title = "Car Price Class Predictor"
 
 if model_pipeline is None:
     app.layout = html.Div([
@@ -113,8 +111,8 @@ else:
 
     app.layout = html.Div([
         html.Div([
-            html.H1("🚗 Car Price Category Predictor", style={"margin": "0"}),
-            html.P("Predict the price-range category of a used car.", style={"margin": "0"})
+            html.H1("🚗 Car Price Class Predictor", style={"margin": "0"}),
+            html.P("Predict the price class (0–3) of a used car.", style={"margin": "0"})
         ], style={"backgroundColor": "#007BFF", "color": "white", "padding": "20px", "textAlign": "center"}),
 
         html.Div([
@@ -141,7 +139,7 @@ else:
                 dcc.Dropdown(id="input-fuel", options=fuel_options, value="Petrol",
                              clearable=False, style={"marginBottom": "20px"}),
 
-                html.Button("🔮 Predict Category", id="predict-btn", n_clicks=0,
+                html.Button("🔮 Predict Class", id="predict-btn", n_clicks=0,
                             style={"backgroundColor": "#28a745", "color": "white",
                                    "padding": "10px 20px", "border": "none", "cursor": "pointer"}),
 
@@ -197,13 +195,17 @@ else:
 
             # 4️⃣ Predict
             pred_class = int(model_pipeline.predict(X_infer)[0])
-            category = class_names[pred_class] if 0 <= pred_class < len(class_names) else f"Class {pred_class}"
+
+            # ✅ Show raw class number
+            category = str(pred_class)
+
             lower = price_bin_edges[pred_class]
-            upper = price_bin_edges[pred_class + 1]
+            upper = price_bin_edges[pred_class + 1] if pred_class + 1 < len(price_bin_edges) else price_bin_edges[-1]
 
             return html.Div([
-                html.Span("Predicted Category: ", style={"color": "#333"}),
+                html.Span("Predicted Class: ", style={"color": "#333"}),
                 html.Span(category, style={"color": "#007BFF"}),
+
                 html.Br(),
                 html.Span("Estimated Price Range: ", style={"color": "#333"}),
                 html.Span(f"₹{lower:,.0f} - ₹{upper:,.0f}", style={"color": "#28a745"}),

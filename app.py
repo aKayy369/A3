@@ -1,3 +1,4 @@
+
 import os
 import json
 import argparse
@@ -216,13 +217,10 @@ else:
             return html.Span(f"❌ Error: {str(e)}", style={"color": "red"})
 
 # ========================================
-# 🚀 Run Server (Dash 2.16+)
+# 🚀 Run Server (Production Ready)
 # ========================================
 if __name__ == "__main__":
-    url = f"http://{args.host}:{args.port}"
-    print(f"🚀 Starting Dash at {url}")
-    try:
-        webbrowser.open(url)
-    except Exception:
-        pass
-    app.run(host=args.host, port=args.port, debug=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 80))
+    print(f"🚀 Starting Dash on {host}:{port}")
+    app.run(host=host, port=port, debug=False)

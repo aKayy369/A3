@@ -6,16 +6,17 @@ import mlflow
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 # ======================================================
-# 🔐 MLflow Configuration
+# 🔐 MLflow Configuration (via env with safe defaults)
 # ======================================================
-mlflow.set_tracking_uri("https://mlflow.ml.brain.cs.ait.ac.th")
 os.environ["MLFLOW_TRACKING_USERNAME"] = os.getenv("MLFLOW_TRACKING_USERNAME", "admin")
 os.environ["MLFLOW_TRACKING_PASSWORD"] = os.getenv("MLFLOW_TRACKING_PASSWORD", "password")
+
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "https://mlflow.ml.brain.cs.ait.ac.th")
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 MODEL_NAME = "st125999-a3-model"
 MODEL_ALIAS = "Staging"
 MODEL_URI = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
-
 
 # ======================================================
 # 🧪 Unit Test Class
@@ -26,6 +27,7 @@ class TestDeployedModel(unittest.TestCase):
     def setUpClass(cls):
         """Load model once before all tests"""
         print(f"\n--- Loading model '{MODEL_NAME}' (alias '{MODEL_ALIAS}') ---")
+        print(f"Using MLflow URI: {MLFLOW_TRACKING_URI}")
         cls.model = mlflow.pyfunc.load_model(MODEL_URI)
         print("✅ Model loaded successfully.")
 
@@ -70,8 +72,8 @@ class TestDeployedModel(unittest.TestCase):
         print("\nRunning Test 2: Output has expected shape...")
 
         df = pd.DataFrame([
-            {"year": 2015, "max_power": 70.0, "mileage": 18.0, "brand": "Tata", "fuel": "Diesel"},
-            {"year": 2018, "max_power": 90.0, "mileage": 22.0, "brand": "Honda", "fuel": "Petrol"},
+            {"year": 2015, "max_power": 70.0,  "mileage": 18.0, "brand": "Tata",   "fuel": "Diesel"},
+            {"year": 2018, "max_power": 90.0,  "mileage": 22.0, "brand": "Honda",  "fuel": "Petrol"},
             {"year": 2022, "max_power": 150.0, "mileage": 15.0, "brand": "Toyota", "fuel": "Petrol"}
         ])
 
@@ -85,3 +87,4 @@ class TestDeployedModel(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(argv=["first-arg-is-ignored"], exit=False)
+
